@@ -9,9 +9,9 @@ name: Java CI with Gradle
 
 on:
   push:
-    branches: [ master ]
+    branches: [ xmaster ]
   pull_request:
-    branches: [ master ]
+    branches: [ xmaster ]
 
 jobs:
   build:
