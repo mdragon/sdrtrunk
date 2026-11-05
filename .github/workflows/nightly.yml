@@ -24,10 +24,10 @@ jobs:
           distribution: 'liberica'
           java-package: 'jdk+fx'
 
-      - name: Build Linux and Mac releases with Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: runtimeZipOthers -PprojectVersion=nightly
+      #- name: Build Linux and Mac releases with Gradle
+      #  uses: gradle/gradle-build-action@v2
+      #  with:
+      #    arguments: runtimeZipOthers -PprojectVersion=nightly
 
       - name: Build Windows release with Gradle
         uses: gradle/gradle-build-action@v2
