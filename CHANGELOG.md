@@ -5,6 +5,76 @@ DSheirer/sdrtrunk changes are not repeated; only the `ap-` fork deltas are recor
 
 Versioning follows `0.6.2-ap-<n>` where `<n>` increments for each fork release.
 
+## [0.6.2-ap-16.1] - 2026-11-09
+
+### Fixed
+- **RTL tuner frequency range could not be moved** (16.0): the RTL editor checked a new range against the tuner's
+  current range instead of what the tuner can tune, so a range could only be narrowed - Baker's 450-459.9 MHz Nooelec
+  could not be set to 154-156.5 MHz. The controller now keeps the embedded tuner's limits for the editor.
+- **Tuner editor stopped saving after an "Invalid Frequency" message** (upstream): the editor stayed in its loading
+  state, so later changes were ignored and never saved. Rejected entries now release the editor and log a WARN;
+  saved range changes log an INFO line.
+- **Uncaught exceptions are written to the application log** (Swing/JavaFX threads included) - each distinct one in
+  full three times, then every 1000th with a count. Before, they went only to the console.
+
+### Upstream
+- #2605 jLibUSB - libusb and USB hotplug for the tuner libraries (replaces usb4java); jAirspy 1.0.12.1, jAirspyHF
+  1.8.1.1, jBladeRF 2.6.0.1, jHackRF 2026.01.3.1, jHydraSDR 1.1.4.1, jRTL 1.4.0.2. Tuner IDs unchanged.
+- #2608 DMR: voice frames with errors are not played and do not change call state (fewer squawks and false
+  encryption flags on noisy DMR).
+- #2602 P25 Phase 1 Adjacent Status Broadcast (uncoordinated band plan) handled as network configuration.
+- #2599 Bias-T for Airspy, Airspy HF and Funcube. #2603 frequency control mouse wheel. #2591 streaming editor
+  text fields expand.
+- Not taken: #2601 LimeSDR support, #2607 version 1.0.0 beta 1 label.
+
+## [0.6.2-ap-16.0] - 2026-11-08
+
+Test build for Baker, Daly and Somerville. The rest of the fleet stays on 15.11.5 until it has run cleanly.
+
+### Upstream tuner libraries (replace the fork's built-in drivers)
+
+- #2590 RTL-SDR (Nooelec, RTL-SDR Blog): jRTL 1.4.0.1 - librtlsdr from rtl-sdr-blog with libusb, both bundled.
+  RTL gain settings are now one gain value plus AGC; saved master/LNA/mixer gains are converted on first load.
+- #2595 SDRplay RSP: jsdrplay 3.15.3 - frequency, gain and sample-rate changes wait for the previous change to
+  finish and report an error if the SDRplay API rejects one. Needs the SDRplay API 3.15+ installed (as before).
+- #2573 Airspy: jAirspy 1.0.12. #2593 Airspy HF+: jAirspyHF 1.8.1. #2597 HackRF: jHackRF; #2598 HackRF bias-T.
+- #2587 HydraSDR: jHydraSDR 1.1.4.
+- Tuner IDs are unchanged (RTL "USB Bus:x Port:y", RSP "RSP1B SER#..."), so saved tuner settings still match.
+
+### Removed (re-add only if testing shows they are needed)
+
+- RSP recovery monitor (15.11.1/15.11.4) and the fork's SDRplay API startup messages - jsdrplay releases a
+  removed RSP itself; a removed RSP still needs an SDRTrunk restart to come back.
+- RTL USB transfer runaway restart (15.11.4) - its code was part of the old driver.
+- The "TUNER REMOVED FROM SYSTEM" WARN (with the channel count) is kept.
+
+### Kept
+
+- 15.11.5 tuner-settings fix - upstream still stops applying a tuner's settings when its saved frequency is
+  outside its range. Change: with the bandwidth still unknown (an RSP sets its sample rate afterwards) the
+  frequency now moves to the middle of the range instead of the edge.
+
+## [0.6.2-ap-15.11.5] - 2026-11-07
+
+### Fixed - a tuner whose saved frequency is outside its frequency range starts without its settings
+
+- Baker 2026-11-04 22:56: two RTL-2832s had a frequency range set while they were running - Port 6.2 to 150-170 MHz
+  while tuned to 483.5125 MHz (the middle of the Danvers/Salem/Manchester fire cluster), Port 6.1.1 to a 150 MHz
+  minimum while parked at 101.1 MHz. On the next start the saved frequency was re-tuned against the new range, failed
+  ("Frequency [483512500] is above the maximum [170000000]"), and the rest of the tuner configuration was never
+  applied - no gain settings, no configured sample rate, no auto-PPM setting. From then on Salem Fire and the
+  channels around it ran with the squelch held open on noise (about 35,600 tone lines an hour per channel), each
+  call started with held hiss, and Baker's log grew to 1.7 GB a day.
+- The frequency range is now applied first; a saved frequency outside it is moved inside (to the nearer edge, inset
+  by half the usable bandwidth) and logged as a WARN "saved frequency ... is outside its frequency range ... moved
+  to ...". Frequency and frequency-correction failures are logged and no longer stop the tuner's sample rate and
+  gain from being applied. An inverted range (minimum not below the maximum) is ignored with a WARN. Applies to every
+  tuner type.
+
+### Upstream
+
+- #2580: the Playlist Editor aliases tab identifier view sorts identifiers by protocol, then numeric value.
+
 ## [0.6.2-ap-15.11.4] - 2026-11-04
 
 ### Fixed - RSP recovery re-attaches the removed RSP

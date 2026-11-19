@@ -55,7 +55,6 @@ import io.github.dsheirer.source.tuner.Tuner;
 import io.github.dsheirer.source.tuner.TunerEvent;
 import io.github.dsheirer.source.tuner.manager.DiscoveredTuner;
 import io.github.dsheirer.source.tuner.manager.TunerManager;
-import io.github.dsheirer.source.tuner.sdrplay.api.SDRPlayLibraryHelper;
 import io.github.dsheirer.source.tuner.ui.TunerSpectralDisplayManager;
 import io.github.dsheirer.spectrum.DisableSpectrumWaterfallMenuItem;
 import io.github.dsheirer.spectrum.ShowTunerMenuItem;
@@ -152,14 +151,6 @@ public class SDRTrunk implements Listener<TunerEvent>
 
         mApplicationLog = new ApplicationLog(mUserPreferences);
         mApplicationLog.start();
-
-        //Note: invoke this early in the application lifecycle, before the TunerManager causes the sdrplay classes
-        //to be loaded since the jextract auto-generated code attempts to load the library by name and that can fail
-        //when the library was not installed into a normal/default location, particularly on windows OS systems.
-        if(SDRPlayLibraryHelper.LOADED)
-        {
-            mLog.info("SDRPlay API native library preemptively loaded");
-        }
 
         mResourceMonitor = new ResourceMonitor(mUserPreferences);
 
@@ -937,6 +928,43 @@ public class SDRTrunk implements Listener<TunerEvent>
      */
     public static void main(String[] args)
     {
+        installUncaughtExceptionLogging();
         new SDRTrunk();
+    }
+
+    /**
+     * AP-fork (ap-16.1): writes exceptions that no code catches - on the Swing and JavaFX threads in particular - to
+     * the application log.  Before, they went only to the console, which nobody sees, so a failing editor control
+     * left no trace (Baker 2026-11-08: tuner range changes silently not saved).  Each distinct exception is logged
+     * in full three times, then every 1000th occurrence with a count.
+     */
+    private static void installUncaughtExceptionLogging()
+    {
+        java.util.concurrent.ConcurrentHashMap<String,java.util.concurrent.atomic.AtomicLong> counts =
+                new java.util.concurrent.ConcurrentHashMap<>();
+        Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            try
+            {
+                StackTraceElement[] stack = throwable.getStackTrace();
+                String key = throwable.getClass().getName() + (stack.length > 0 ? "@" + stack[0] : "");
+                long count = counts.computeIfAbsent(key, k -> new java.util.concurrent.atomic.AtomicLong()).incrementAndGet();
+
+                if(count <= 3 || count % 1000 == 0)
+                {
+                    mLog.error("Uncaught exception on thread [" + thread.getName() + "] - occurrence " + count, throwable);
+                }
+            }
+            catch(Throwable ignored)
+            {
+                //Never let logging fail the thread
+            }
+
+            if(previous != null)
+            {
+                previous.uncaughtException(thread, throwable);
+            }
+        });
     }
 }
